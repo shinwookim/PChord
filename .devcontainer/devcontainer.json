@@ -10,7 +10,7 @@
     // "features": {},
     // Use 'forwardPorts' to make a list of ports inside the container available locally.
     // "forwardPorts": [],
-    "postStartCommand": "dotnet tool install --global P && git config --global --add safe.directory ${containerWorkspaceFolder}"
+    "postStartCommand": "bash .devcontainer/setup.sh"
     // Configure tool-specific properties.
     // "customizations": {},
     // Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
