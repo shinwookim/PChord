@@ -1,0 +1,63 @@
+\documentclass{scrartcl}
+\usepackage{graphicx}
+\usepackage{amssymb, amsmath}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{hyperref}
+\usepackage{color}
+\usepackage{framed}
+\usepackage{enumerate}
+\usepackage{csquotes}
+\usepackage[
+backend=biber,
+style=alphabetic,
+]{biblatex}
+\usepackage{booktabs}
+\usepackage{float}
+\addbibresource{sources.bib}
+
+
+\title{
+    Formal Verification of Content Addressable Networks (CANs)
+}
+\subtitle{
+    CS3551: Advanced Topics in Distributed Information Systems
+}
+\author{Shinwoo Kim, Derrick Hicks}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+    Hash tables (also known as key-value stores) are an essential data structure used in a wide variety of applications and systems, including databases, caches, compilers, and network protocols. In many distributed systems, hash tables are equally valuable, as they can be applied in domain name lookups, web caching, and more. One such implementation of a distributed hash table is the Content Addressable Network (CAN) \cite{10.1145/964723.383072}, which maintains indices to objects in a fully distributed manner. Unfortunately, an implementation of CAN which has verified correctness properties does not yet exist. As such, it is plausible that existing implementation of CAN contain logical, programming, or design bugs. 
+    
+    In this project, we aim to apply formal verification methods to construct a Content Addressable Network that can be proved for correctness and fault tolerance. To do so, we aim to use the P programming language \cite{noauthor_p_nodate} which can conduct extensive model-checking while also generating implementation code. By doing so, we aim to provide a verified, correct implementation of CAN-based Distributed Hash Table that application engineers can confidently use in constructing their software.
+
+\section{Project Proposal}
+
+We plan to construct a formally verified implementation using the P Programming Language. P is a state-machine based programming language for formally modeling and specifying complex distributed systems. In particular, P allows for various backend analysis engines to check that the modelled system satisfy the desired correctness invariants. Importantly, P is much closer to the implementation than other formal specification language, such as TLA$^+$ and allows programmers to include finer details in their specifications; A typical P program consists of the implementation, specifications, and the tests. With this, P can perform model checking to verify that the actual implementation satisfy the correct specifications; it can also be cross-compiled into C\# C code for production-level code.
+
+The outcome of this project will be in $n$ parts:
+\begin{enumerate}
+    \item An implementation of a CAN-based distributed hash table (DHT) that has been proved for correctness.
+    \item Improved understanding of correctness and fault-tolerance properties of Content Addressable Networks. 
+\end{enumerate}
+We also hope to advance our understanding of formal methods, in particular, regarding the P language.
+
+To evaluate (1), we will test our generated implementation against other existing implementation of CAN. We hope that our formally verified implementation can be as performant as other implementations whilst providing correctness and fault-tolerance guarantees.
+
+\section{Groundwork}
+Many implementations of CAN-based DHTs are openly available on GitHub\footnote{https://github.com/vjm1952/Content-Addressable-Network\\https://github.com/vaibhavgandhi12/Content-Addressable-Network\\https://github.com/tammykan/DHT-CAN\\https://github.com/2sookwang/Python\_Content\_Addressable\_Network} that can be used for comparison with our implementation. They are written in popular programming languages such as Java, Python, etc., and the code quality varies from production-grade to hobbyist.
+
+The P programming language requires minimal set-up to use. It is available on all major operating systems, and tooling (including a dedicated IDE) is provided to aid with development. We have installed P in our local environment and were able to test that it performed without errors.
+
+Most of our work will be based on the original CAN specifications in \cite{10.1145/964723.383072}, but other variants exist which provide stronger fault-tolerance guarantees \cite{10.1007/11576235_79}.
+
+\appendix
+\section{Alternate Ideas}
+Our initial proposal regarded the construction of a Distributed Shared Memory System that could help schedule and manage tasks in a distributed manner. In particular, we aimed to design a system that could take a program written for a single multicore system and distributing the threads across a cluster of machines. Such systems may be useful in domains where computation is heavily CPU-bound. Under our proposal, the system would have been designed using Rust where we could take advantage of its unique memory management principles to simplify the design of a DSM system; in particular, we could try to reduce thrashing a pointer chasing through the use of the borrow checker which could tie an object's ownership to a particular machine. Unfortunately, we could not figure out how to closely relate this project to the course goals—of verification and testing.
+
+
+\printbibliography
+
+\end{document}
