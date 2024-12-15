@@ -1,0 +1,10 @@
+<!-- P project file for P-Chord project-->
+<Project>
+<ProjectName>PChord</ProjectName>
+<InputFiles>
+	<PFile>./PSrc/</PFile>
+</InputFiles>
+<OutputDir>./PGenerated/</OutputDir>
+<!-- Add the dependencies for the Timer machine -->
+<IncludeProject>./Common/FailureInjector/FailureInjector.pproj</IncludeProject>
+</Project>
