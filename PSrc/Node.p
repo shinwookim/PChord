@@ -96,6 +96,7 @@ machine Node {
             // Determine who is our next R successors
             InitializeNodeLinks(metadata);
             // Wait for incoming requests
+            announce eInitalizeSuccessors, (Id = Id, successors = successorList);
             goto WaitForRequests;
         }
     }

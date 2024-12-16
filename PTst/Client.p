@@ -36,3 +36,6 @@ machine Client {
         }
     }
 }
+
+// two phase commit client module
+module ChordClient = { Client };

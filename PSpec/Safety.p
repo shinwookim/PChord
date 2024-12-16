@@ -1,7 +1,8 @@
 // event: initialize the AtomicityInvariant spec monitor
-type tMonitorSuccesor = (Id: int, successors: seq[tNode]);
+type tMonitorSuccessor = (Id: int, successors: seq[tNode]);
 event eMonitor_AtomicityInitialize;
-event eSuccessorAltered: tMonitorSuccesor;
+event eSuccessorAltered: tMonitorSuccessor;
+event eInitalizeSuccessors: tMonitorSuccessor;
 /*
 OrderedRing:
 for every node:
@@ -21,7 +22,7 @@ for every node:
 We would like to assert the AtLeastOneRing property that:
 There must be a ring, which means there must be a non-empty set of ring members.
 ***********************************/
-spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize
+spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eInitalizeSuccessors
 {
     var successorMap: map[int, seq[tNode]];
 
@@ -38,11 +39,14 @@ spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize
       }
 
     state WaitForEvents {
+      on eInitalizeSuccessors do (package: tMonitorSuccessor) {
+        successorMap[package.Id] = package.successors;
+      }
       on eSuccessorAltered goto HandleEvents;
     }
 
     state HandleEvents {
-      entry (package: tMonitorSuccesor) {
+      entry (package: tMonitorSuccessor) {
         successorMap[package.Id] = package.successors;
 
         foreach(id in keys(successorMap)) {
