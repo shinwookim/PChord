@@ -9,34 +9,6 @@ type tChordConfig = (
 
 // function that creates the two phase commit system along with the machines in its
 // environment (test harness)
-type tRingConfig = (nodes: seq[Node], nodeIds: seq[int]);
-
-fun SetUpRing(config: tChordConfig) : tRingConfig
-{
-    var nodes: seq[Node];
-    var nodeIds: seq[int];
-    var curNode: Node;
-    var curId: int;
-    var i : int;
-
-    // Create initial nodes
-    while (i < config.numInitialNodes) {
-        // Choose a random id for node
-        curId = ChooseRandomNode(config.numNodes);
-        // Don't add an id twice
-        if(curId in nodeIds) { continue; }
-        curNode = new Node((n = config.numNodes, r = config.failures + 1));
-        // Add to existing nodes
-        nodes += (i, curNode);
-        nodeIds += (i, curId);
-        i = i + 1;
-    }
-
-    nodeIds = BubbleSort(nodeIds);
-
-    return (nodes = nodes, nodeIds = nodeIds);
-}
-
 
 /*
 This machine creates the 3 participants, 1 coordinator, and 1 clients
@@ -45,16 +17,29 @@ machine Chord {
     var nodes: seq[Node];
     var nodeIds: seq[int];
     var unavailable: seq[int];
+    var numStabilize: int;
     var i: int;
 
     start state Init {
         entry (config: tChordConfig) {
-            var metadata: tRingConfig;
             var tmp: set[Node];
-
-            metadata = SetUpRing(config);
-            nodes = metadata.nodes;
-            nodeIds = metadata.nodeIds;
+            var curNode: Node;
+            var curId: int;
+        
+            // Create initial nodes
+            while (i < config.numInitialNodes) {
+                // Choose a random id for node
+                curId = ChooseRandomNode(config.numNodes);
+                // Don't add an id twice
+                if(curId in nodeIds) { continue; }
+                curNode = new Node((n = config.numNodes, r = config.failures + 1));
+                // Add to existing nodes
+                nodes += (i, curNode);
+                nodeIds += (i, curId);
+                i = i + 1;
+            }
+            
+            nodeIds = BubbleSort(nodeIds);
 
             // create spec
             announce eMonitor_AtomicityInitialize;
@@ -84,22 +69,6 @@ machine Chord {
                 }
                 CreateFailureInjector((nodes = tmp, nFailures = config.failures));
             }
-
-            goto Stabilize;
-        }
-    }
-
-    state Stabilize {
-        entry {
-            send choose(nodes), eStabilize;
-            goto FixSuccessorList;
-        }
-    }
-
-    state FixSuccessorList {
-        entry {
-            send choose(nodes), eFixSuccessorList;
-            goto Stabilize;
         }
     }
 }
@@ -110,8 +79,8 @@ machine SingleClientNoFailure {
             var config: tChordConfig;
             config = (
                 numClients = 1, 
-                numNodes = 8,
-                numInitialNodes = 4,
+                numNodes = 3,
+                numInitialNodes = 3,
                 numTransPerClient = 5,
                 failures = 0);
             new Chord(config);
@@ -119,7 +88,37 @@ machine SingleClientNoFailure {
     }
 }
 
+machine TwoClientNoFailure {
+    start state Init {
+        entry {
+            var config: tChordConfig;
+            config = (
+                numClients = 2, 
+                numNodes = 3,
+                numInitialNodes = 3,
+                numTransPerClient = 5,
+                failures = 0);
+            new Chord(config);
+        }
+    }
+}
+
+machine SingleClientFailure {
+    start state Init {
+        entry {
+            var config: tChordConfig;
+            config = (
+                numClients = 1, 
+                numNodes = 3,
+                numInitialNodes = 3,
+                numTransPerClient = 5,
+                failures = 1);
+            new Chord(config);
+        }
+    }
+}
   
+
 fun ChooseRandomNode(uniqieId: int) : int;
 
 fun BubbleSort(arr: seq[int]) : seq[int]
@@ -139,10 +138,12 @@ fun BubbleSort(arr: seq[int]) : seq[int]
                 arr[j + 1] = tmp;
                 swapped = true;
             }
+            j = j + 1;
         }
         if(swapped == false) {
             break;
         }
+        i = i + 1;
     }
 
     return arr;

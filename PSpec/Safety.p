@@ -42,20 +42,18 @@ spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eI
       on eInitalizeSuccessors do (package: tMonitorSuccessor) {
         successorMap[package.Id] = package.successors;
       }
-      on eSuccessorAltered goto HandleEvents;
-    }
-
-    state HandleEvents {
-      entry (package: tMonitorSuccessor) {
+      on eSuccessorAltered do (package: tMonitorSuccessor) {
         successorMap[package.Id] = package.successors;
-
+        ring = false;
         foreach(id in keys(successorMap)) {
           // Choose a random starting node
+          if(sizeof(successorMap[id]) == 0) {continue;}
           startNode = successorMap[id][0];
           currNode = startNode;
           i = 0;
           while (i < sizeof(successorMap)) {
               // Cycle already detected -> one ring exists
+              print format("{0}", currNode.Id);
               if(currNode in visited) {
                   ring = true;
                   break;
@@ -73,6 +71,7 @@ spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eI
           }
 
           if(ring) {
+            print "Found At Least One Ring!";
             break;
           }
         }
