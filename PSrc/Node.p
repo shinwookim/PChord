@@ -10,7 +10,6 @@ type tNode = (Id: int, node: Node);
 type tNodeConfig = (Id: int, nodes: seq[Node], nodeIds: seq[int]);
 
 event eConfig: tNodeConfig;
-event eJoin: tNodeConfig;
 
 // ==================================================================================================
 // Client Requests for writing/reading keys
@@ -30,7 +29,6 @@ event eGetKeyResp: tReadTransResp;
 event eAddKeyReq: tTrans;
 event eAddKeyResp: tWriteTransResp;
 event eFindSuccessorReq: tFindSuccessor;
-event eFindSuccessorResp: Node;
 
 // ==================================================================================================
 type tSendKeysReq = (node: Node, kys: set[int]);
@@ -44,7 +42,7 @@ event eObtainKeysResp: set[int];
 // ==================================================================================================
 // event: stabilize node, querying their successor's predecessor
 event eStabilize;
-event eNotifySuccesor: tNode;
+event eNotifySuccessor: tNode;
 event eFixSuccessorList;
 // event:
 event eGetPredecessorReq: Node;
@@ -77,7 +75,7 @@ machine Node {
 
     // tmp variables
     var i: int;
-    var succesor: tNode;
+    var successor: tNode;
     var r: int;
     var idx: int;
     var next: int;
@@ -85,7 +83,9 @@ machine Node {
     // Needs to be modified to account for creation of a chord w/
     // a single node and a new node joining the network
     start state Init {
-        defer eShutDown, eFindSuccessorReq, eLeave, eStabilize, eNotifySuccesor, eGetPredecessorReq, eSuccessorListReq;
+        defer eShutDown, eLeave;
+        defer eFindSuccessorReq, eAddKeyReq, eGetKeyReq;
+        defer eStabilize, eNotifySuccessor, eGetPredecessorReq, eFixSuccessorList, eSuccessorListReq;
 
         entry (payload: (n: int, r: int)) {
             N = payload.n;
@@ -95,22 +95,6 @@ machine Node {
         on eConfig do (metadata: tNodeConfig) {
             // Determine who is our next R successors
             InitializeNodeLinks(metadata);
-            // Wait for incoming requests
-            goto WaitForRequests;
-        }
-
-        on eJoin do (metadata: tNodeConfig) {
-            // Determine who is our next R successors
-            InitializeNodeLinks(metadata);
-            // Nofiy our successor that we are a potential predecessor
-            send successorList[0].node, eNotifySuccesor, (Id = Id, node = this);
-            // Obtain our interval of keys from our successor
-            send successorList[0].node, eObtainKeysReq, (Id = Id, node = this);
-        }
-
-        on eObtainKeysResp do (kys: set[int]) {
-            // Update our set of keys
-            Keys = kys;
             // Wait for incoming requests
             goto WaitForRequests;
         }
@@ -143,18 +127,17 @@ machine Node {
         }
 
         on eFindSuccessorReq do (package: tFindSuccessor) {
-            succesor = successorList[0];
-            // Find the next successsor closest to the given id
-            if(InBetween(package.trans.key, Id + 1, succesor.Id)) {
-                send succesor.node, package.message, package.trans;
-            } else {
-                send succesor.node, eFindSuccessorReq, (trans = package.trans, message = package.message);
+            // Worst-case Scenario: Node can't serve any request to successor
+            // How do we recover ?!
+            if(sizeof(successorList) == 0) {
+                return;
             }
-
-            // Timeout occurs -> Try again
-            if(!$) {
-                successorList -= (0);
-                raise eFindSuccessorReq, package;
+            successor = successorList[0];
+            // Find the next successsor closest to the given id
+            if(InBetween(package.trans.key, Id + 1, successor.Id)) {
+                send successor.node, package.message, package.trans;
+            } else {
+                send successor.node, eFindSuccessorReq, (trans = package.trans, message = package.message);
             }
         }
 
@@ -164,14 +147,14 @@ machine Node {
             i = 0;
             while (i < sizeof(successorList)) {
                 i = i + 1;
-                succesor = successorList[0];
-                send succesor.node, eSuccessorListReq, this;
+                successor = successorList[0];
+                send successor.node, eSuccessorListReq, this;
                 receive {
                     case eSuccessorListResp: (list: seq[tNode]) {
                         if(sizeof(list) == 0) { continue; }
                         successorList = list;
                         successorList -= (sizeof(list) - 1);
-                        successorList += (0, succesor);
+                        successorList += (0, successor);
                         break;
                     }
                     case eNodeUnavailable: {
@@ -180,6 +163,8 @@ machine Node {
                     }
                 }
             }
+
+            announce eSuccessorAltered, (Id = Id, successors = successorList);
         }
         
         // Node is requesting our list of successors
@@ -187,15 +172,19 @@ machine Node {
 
         // Randomly chosen to check if node is in ideal state
         on eStabilize do {
+            // Worst-case: Can't recover :(
+            if(sizeof(successorList) == 0) {
+                return;
+            }
             // Obtain predecessor of our current successor
             send successorList[0].node, eGetPredecessorReq, this;
-            goto WaitForResp;
+            goto WaitToStabilize;
         }
 
         on eGetPredecessorReq do (node: Node) { send node, eGetPredecessorResp, predecessor; }
 
         // Possibly have new predecessor
-        on eNotifySuccesor do (node: tNode) {
+        on eNotifySuccessor do (node: tNode) {
             // If our predecessor does not exist (default(machine)) or the node that pingd us has
             // a lesser id than our current predecessor
             if(predecessor.node == default(machine) || InBetween(node.Id, predecessor.Id + 1, Id - 1)) {
@@ -214,6 +203,7 @@ machine Node {
                 goto WaitToLeave;
             } else {
                 Keys = default(set[int]);
+                announce eSuccessorAltered, (Id = Id, successors = successorList);
                 goto Unavailable;
             }
         }
@@ -255,22 +245,26 @@ machine Node {
 
         exit {
             Keys = default(set[int]);
+            announce eSuccessorAltered, (Id = Id, successors = successorList);
         }
 
     }
 
-    state WaitForResp {
+    state WaitToStabilize {
         defer eSuccessorListReq;
 
         on eGetPredecessorResp do (node: tNode) {
-            succesor = successorList[0];
+            if(sizeof(successorList) == 0) {
+                return;
+            }
+            successor = successorList[0];
             // Verify if a more ideal successor exists
-            if(node.node != default(machine) && InBetween(node.Id, Id + 1, succesor.Id - 1)) {
+            if(node.node != default(machine) && InBetween(node.Id, Id + 1, successor.Id - 1)) {
                 successorList -= (0);
                 successorList += (0, node);
             }
             // Ping our new successor to know we exist
-            send successorList[0].node, eNotifySuccesor, (Id = Id, node = this);
+            send successorList[0].node, eNotifySuccessor, (Id = Id, node = this);
             goto WaitForRequests;
         }
 
@@ -278,22 +272,20 @@ machine Node {
             successorList -= (0);
             goto WaitForRequests;
         }
+
+        exit {
+            announce eSuccessorAltered, (Id = Id, successors = successorList);
+        }
     }
 
     state Unavailable {
-        ignore eStabilize, eNotifySuccesor, eObtainKeysReq;
-
-        on eJoin do (metadata: tNodeConfig) {
-            // Determine who is our next R successors
-            InitializeNodeLinks(metadata);
-            // Notify successor that we exist and are their predecessor
-            send successorList[0].node, eNotifySuccesor, (Id = Id, node = this);
-            // Wait for incoming requests
-            goto WaitForRequests;
-        }
+        ignore eStabilize, eNotifySuccessor, eObtainKeysReq;
 
         on eSuccessorListReq do (node: Node) { send node, eNodeUnavailable; }
         
+        on eGetPredecessorReq do (node: Node) {send node, eNodeUnavailable; }
+
+        on eSendKeysReq do (package: tSendKeysReq) { send package.node, eNodeUnavailable; }
     }
 
     fun InitializeNodeLinks(metadata: tNodeConfig)

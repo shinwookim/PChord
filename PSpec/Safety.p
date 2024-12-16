@@ -1,7 +1,7 @@
 // event: initialize the AtomicityInvariant spec monitor
-event eMonitor_AtomicityInitialize: int;
-
-
+type tMonitorSuccesor = (Id: int, successors: seq[tNode]);
+event eMonitor_AtomicityInitialize;
+event eSuccessorAltered: tMonitorSuccesor;
 /*
 OrderedRing:
 for every node:
@@ -21,42 +21,58 @@ for every node:
 We would like to assert the AtLeastOneRing property that:
 There must be a ring, which means there must be a non-empty set of ring members.
 ***********************************/
-spec AtLeastOneRing observes eVerify
+spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize
 {
-    var nodes: set[Node];
+    var successorMap: map[int, seq[tNode]];
+
+    var ring: bool;
+    var visited: set[tNode];
+    var startNode: tNode;
+    var currNode: tNode;
+    var i: int;
+    var id: int;
+
 
     start state Init {
-        defer eJoin, eLeave, eShutDown;
-        on eMonitor_AtLeastOneRing goto WaitForEvents;
-    }
+        on eMonitor_AtomicityInitialize goto WaitForEvents;
+      }
 
     state WaitForEvents {
-        on eVerify do {
-            assert sizeof(nodes) > 0;
+      on eSuccessorAltered goto HandleEvents;
+    }
 
-            var visited: set[Node];
-            var startNode: Node;
-            var currNode: Node;
-            var i: int;
+    state HandleEvents {
+      entry (package: tMonitorSuccesor) {
+        successorMap[package.Id] = package.successors;
 
-            // Choose a random starting node
-            startNode = choose(nodes);
-            currNode = startNode.succesorList[0];
+        foreach(id in keys(successorMap)) {
+          // Choose a random starting node
+          startNode = successorMap[id][0];
+          currNode = startNode;
+          i = 0;
+          while (i < sizeof(successorMap)) {
+              // Cycle already detected -> one ring exists
+              if(currNode in visited) {
+                  ring = true;
+                  break;
+              }
+              // Add current node to visited nodes
+              visited += (currNode);
+              // Go to successor
+              currNode = successorMap[currNode.Id][0];
+              i = i + 1;
+          }
 
-            while (i < sizeof(noddes)) {
-                // Cycle already detected -> one ring exists
-                if(currNode in visited) {
-                    break;
-                }
-                // Add current node to visited nodes
-                visited += currNode;
-                // Go to successor
-                currNode = currNode.succesor[0];
-            }
+          if(i == sizeof(successorMap)){
+              assert currNode.Id == startNode.Id, "Iterated over N nodes, but no cycle detected";
+              ring = true;
+          }
 
-            if(i == sizeof(nodes)){
-                assert currNode.Id == startNode.Id;
-            }
+          if(ring) {
+            break;
+          }
         }
+        assert ring == true, "At Least One Ring not detected";
+      }
     }
 }
