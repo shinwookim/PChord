@@ -12,11 +12,16 @@ Install the P language toolchain (compiler and model-checker).
 You can verify that P is installed by running `p -v`.
 ```shell-session
 $ p --version
-P version 2.3.1.0
+P version 2.2.2.0
 ~~ [PTool]: Thanks for using P! ~~
 ```
+> **Note**: PChord has been implemented and tested using P version 2.2.2.0. Newer versions of P (e.g., version 2.3) have introduced breaking changes when dealing with foreign functions. Please install P version 2.2.2.0 using
+>  ```sh
+>  dotnet tool install --global P --version 2.2.2.0
+>  ```
+
 ## Compiling a P Program
-A program can be compiled by passsing all the P files (`*.p`) to the P compiler. For convenience, we provide a *P project file* (`PChord.pproj`) which already pre-specifies the required inputs.
+A program can be compiled by passing all the P files (`*.p`) to the P compiler. For convenience, we provide a *P project file* (`PChord.pproj`) which already pre-specifies the required inputs.
 
 To compile, you can run `p compile`.
 ```shell-session
