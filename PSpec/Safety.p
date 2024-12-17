@@ -83,6 +83,97 @@ spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eI
     }
 }
 
+// Let r_x := a list of reachable nodes from x
+// From any node pairs x, y:
+//     assert  r_x <= r_y or r_y <= r_x ( <= is subset)
+
+// func isSubset(x,y):
+//     for each x_i in x:
+//         assert x_i in y
+spec AtMostOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eInitalizeSuccessors
+{
+  var successorMap: map[int, seq[tNode]];
+
+  var visited: set[tNode];
+  var subsets: set[set[int]];
+  var tmp: set[int];
+  var curr: tNode;
+  var i: int;
+  var j: int;
+  var id: int;
+  var sub1: set[tNode];
+  var sub2: set[tNode];
+
+  start state Init {
+      on eMonitor_AtomicityInitialize goto WaitForEvents;
+  }
+
+  state WaitForEvents {
+    on eInitalizeSuccessors do (package: tMonitorSuccessor) {
+      successorMap[package.Id] = package.successors;
+    }
+    on eSuccessorAltered do (package: tMonitorSuccessor) {
+      successorMap[package.Id] = package.successors;
+
+      // Get each pair of nodes
+      subsets = default(set[set[int]]);
+      tmp = default(set[int]);
+      foreach(i in keys(successorMap)) {
+        if(sizeof(successorMap[i]) == 0) {
+          continue;
+        }
+        foreach(j in keys(successorMap)) {
+          if(sizeof(successorMap[i]) == 0 || j == i) {
+            continue;
+          }
+          tmp = default(set[int]);
+          tmp += (i);
+          tmp += (j);
+          subsets += (tmp);
+        }
+      }
+      
+      sub1 = default(set[tNode]);
+      sub2 = default(set[tNode]);
+
+      foreach(tmp in subsets) {
+        sub1 = GetReachableNodes(tmp[0]);
+        sub2 = GetReachableNodes(tmp[1]);
+        assert IsSubset(sub1, sub2) || IsSubset(sub1, sub2);
+      }
+
+      print "hello";
+    }
+  }
+
+  fun GetReachableNodes(id: int) : set[tNode]
+  {
+    visited = default(set[tNode]);
+    curr = successorMap[id][0];
+    i = 0;
+    while (i < sizeof(successorMap)) {
+      if(curr in visited) {
+        break;
+      }
+      visited += (curr);
+      curr = successorMap[curr.Id][0];
+    }
+    return visited;
+  }
+
+  fun IsSubset(x: set[tNode], y: set[tNode]) : bool
+  {
+    foreach(curr in x) {
+      if((curr in y) == false) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+}
+
+
 spec OrderedRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eInitalizeSuccessors
 {
     var successorMap: map[int, seq[tNode]];
