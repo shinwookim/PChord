@@ -61,6 +61,9 @@ spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eI
               // Add current node to visited nodes
               visited += (currNode);
               // Go to successor
+              if((currNode.Id in keys(successorMap)) == false || sizeof(successorMap[currNode.Id]) == 0) {
+                break;
+              }
               currNode = successorMap[currNode.Id][0];
               i = i + 1;
           }
