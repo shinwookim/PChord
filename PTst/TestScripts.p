@@ -1,11 +1,11 @@
 test tcSingleClientNoFailure [main = SingleClientNoFailure]:
-assert AtLeastOneRing in 
+assert AtLeastOneRing, OrderedRing in 
     (union ChordModule, ChordClient, FailureInjector, { SingleClientNoFailure });
 
 test tcTwoClientNoFailure [main = TwoClientNoFailure]:
-assert AtLeastOneRing in
+assert AtLeastOneRing, OrderedRing in
     (union ChordModule, ChordClient, FailureInjector, { TwoClientNoFailure });
 
 test tcSingleClientFailure [main = SingleClientFailure]:
-assert AtLeastOneRing in
+assert AtLeastOneRing, OrderedRing in
     (union ChordModule, ChordClient, FailureInjector, { SingleClientFailure });

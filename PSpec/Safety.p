@@ -82,3 +82,60 @@ spec AtLeastOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eI
       }
     }
 }
+
+spec OrderedRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eInitalizeSuccessors
+{
+    var successorMap: map[int, seq[tNode]];
+    var numOrderingChange: int;
+
+
+    var visited: set[tNode];
+    var lastVisitedNode: tNode;
+
+    var currNode: tNode;
+    var i: int;
+    var id: int;
+
+
+    start state Init {
+        on eMonitor_AtomicityInitialize goto WaitForEvents;
+    }
+
+    state WaitForEvents {
+      on eInitalizeSuccessors do (package: tMonitorSuccessor) {
+        successorMap[package.Id] = package.successors;
+      }
+      on eSuccessorAltered do (package: tMonitorSuccessor) {
+        successorMap[package.Id] = package.successors;
+        
+        foreach(id in keys(successorMap)) {
+          if(sizeof(successorMap[id]) == 0) {
+            continue;
+          }
+          numOrderingChange = 0;
+          lastVisitedNode = successorMap[id][0];
+          currNode = lastVisitedNode;
+          i = 0;
+          while (i < sizeof(successorMap)) {
+              if(currNode in visited) {
+                  break;
+              }
+              if (lastVisitedNode.Id > currNode.Id) {
+                numOrderingChange = numOrderingChange + 1;
+              }
+            
+              visited += (currNode);
+              lastVisitedNode = currNode;
+
+              // Go to successor
+              if((currNode.Id in keys(successorMap)) == false || sizeof(successorMap[currNode.Id]) == 0) {
+                break;
+              }
+              currNode = successorMap[currNode.Id][0];
+              i = i + 1;
+          }        
+        }
+        assert numOrderingChange <= 1, "More than one ordering change detected";
+      }
+    }
+}
