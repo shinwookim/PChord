@@ -76,6 +76,7 @@ machine Node {
     // tmp variables
     var i: int;
     var successor: tNode;
+    var tmpSuccessor: tNode;
     var r: int;
     var idx: int;
     var next: int;
@@ -152,7 +153,7 @@ machine Node {
             // Remove immediate successor
             // Ping the next successors to see who is live
             if(sizeof(successorList) > 0) {
-                successor = successorList[0];
+                tmpSuccessor = successorList[0];
                 send successor.node, eSuccessorListReq, this;
             }
         }
@@ -163,7 +164,7 @@ machine Node {
             }
             successorList = list;
             successorList -= (sizeof(list) - 1);
-            successorList += (0, successor);
+            successorList += (0, tmpSuccessor);
             announce eSuccessorAltered, (Id = id, successors = successorList);
         }
 
@@ -273,7 +274,7 @@ machine Node {
             }
             successor = successorList[0];
             // Verify if a more ideal successor exists
-            if(node.node != default(machine) && InBetween(node.Id, id + 1, successor.Id - 1)) {
+            if(node.node != default(machine) && node.Id != id && InBetween(node.Id, id + 1, successor.Id - 1)) {
                 successorList -= (0);
                 successorList += (0, node);
             }

@@ -123,7 +123,7 @@ spec AtMostOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eIn
           continue;
         }
         foreach(j in keys(successorMap)) {
-          if(sizeof(successorMap[i]) == 0 || j == i) {
+          if(sizeof(successorMap[j]) == 0 || j == i) {
             continue;
           }
           tmp = default(set[int]);
@@ -139,10 +139,8 @@ spec AtMostOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eIn
       foreach(tmp in subsets) {
         sub1 = GetReachableNodes(tmp[0]);
         sub2 = GetReachableNodes(tmp[1]);
-        assert IsSubset(sub1, sub2) || IsSubset(sub1, sub2);
+        assert IsSubset(sub1, sub2) || IsSubset(sub2, sub1), format("{0} : {1} : {2}", sub1, sub2, successorMap);
       }
-
-      print "hello";
     }
   }
 
@@ -156,7 +154,11 @@ spec AtMostOneRing observes eSuccessorAltered, eMonitor_AtomicityInitialize, eIn
         break;
       }
       visited += (curr);
+      if((curr.Id in keys(successorMap)) == false || sizeof(successorMap[curr.Id]) == 0) {
+        return visited;
+      }
       curr = successorMap[curr.Id][0];
+      i = i + 1;
     }
     return visited;
   }
